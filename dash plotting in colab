@@ -1,0 +1,112 @@
+#### dash requirement intall
+
+!pip install jupyter-dash
+!pip install dash-cytoscape -q
+
+#### more dash requirement
+
+from jupyter_dash import JupyterDash # pip install dash 
+import dash_cytoscape as cyto # pip install dash-cytoscape==0.2.0 or higher 
+import dash_html_components as html 
+import dash_core_components as dcc 
+from dash.dependencies import Output, Input
+
+
+"""
+py app to give an interactive scatter graph to help explore the teaching load of the fairfield U faculty
+
+"""
+
+#### defining app
+app = JupyterDash(__name__)
+
+#### retriving data saved earlier
+data = pd.read_csv('/content/data.csv') ### assuming data is located here
+
+#### setting up initial plot
+fig = px.scatter(data, 
+                 x="CourseScoresum", 
+                 y="NumStudentssum", 
+                 color="School",
+                 opacity = 0.66,
+                 size = 'Sectioncount',
+                 labels = dict(CourseScoresum='Total Course Score', NumStudentssum='Total Students'),
+                 template = 'ggplot2',
+                 title= (f'Teaching load'))              
+
+### this needs worked on - general formatting
+app.layout = html.Div(children=[
+    html.H1(children='Banner teaching load analysis'),
+    html.Div(children='''
+        Select school:
+    '''),
+
+#### build/position dropdown 
+    dcc.Dropdown(id='school_drop',
+                 options=[{'label':i,'value':i}
+                          for i in data['School'].unique()] + [{'label': 'all', 'value': 'all'}],
+                 value= 'all'),
+  
+  
+#### build/position plot   
+    dcc.Graph(
+            id='graph',
+            figure=fig),
+    
+#### build/position year slider    
+    dcc.Slider(2014,2022,
+               id='year_slider',
+               step=None,
+               marks={2014:"'14",
+                      2015:"'15",
+                      2016:"'16",
+                      2017:"'17",
+                      2018:"'18",
+                      2019:"'19",
+                      2020:"'20",
+                      2021:"'21",
+                      2022:"'22"},
+               included=False,
+               value = 2021),
+])
+
+#### callback funtion - what happens when you interact, connecting the wires
+@app.callback(
+    
+    Output(component_id='graph', component_property='figure'),
+    Input(component_id= 'school_drop', component_property='value'),
+    Input(component_id= 'year_slider', component_property='value')
+)
+#### function that updates the plot based on callbacks
+def update_graph(selected_school,year_slider):
+
+#### school selection logic  
+  if selected_school != 'all':
+    filtered_school = data[data['School']==selected_school]
+  elif selected_school == 'all':
+     filtered_school = data
+  
+#### year selection logic  
+  filtered_school=filtered_school[filtered_school['CalendarYear']==year_slider]
+
+  coursedets = str(data['CourseCodesum'][:3])
+#### plot 
+  #fig = px.scatter(filtered_school,              #### serving pl
+                 x="CourseScoresum", 
+                 y="NumStudentssum", 
+                 color="School",
+                 opacity = 0.66,
+                 size = 'Sectioncount',
+                 template = 'ggplot2',
+                 hover_data = ['InstructorName','CalendarYear'],
+                 labels = dict(CourseScoresum='Total Course Score', NumStudentssum='Total Students'),
+                 title = (f'Teaching load in {selected_school}'),
+                 width=1200, 
+                 height=800)
+
+
+  #fig.update_layout(transition_duration=1000)
+  
+  return fig
+#### serving app - access on localhost linked below
+app.run_server(mode='external')
